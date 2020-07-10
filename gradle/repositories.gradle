@@ -1,0 +1,8 @@
+def repositoriesConfig = {
+    mavenCentral()
+    google()
+    jcenter()
+    maven { url 'https://plugins.gradle.org/m2/' } // required until switch to Gradle Plugins DSL has been completed
+}
+project.buildscript.repositories(repositoriesConfig)
+repositories(repositoriesConfig)

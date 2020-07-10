@@ -1,0 +1,26 @@
+buildscript {
+    apply from: "$rootDir/gradle/platformProperties.gradle"
+    apply from: "$rootDir/gradle/repositories.gradle"
+    apply from: "${project.rootDir}/dependencies.gradle"
+    apply from: "${project.rootDir}/versions.gradle"
+
+    dependencies {
+        classpath "com.android.tools.build:gradle:$versions.gradle_plugin"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$versions.kotlin_version"
+    }
+}
+
+plugins {
+    id "io.gitlab.arturbosch.detekt" version "1.5.1"
+}
+
+allprojects {
+    buildscript {
+        apply from: "$rootDir/gradle/repositories.gradle" // must be in buildscript{} closure
+        apply from: "$rootDir/gradle/detekt.gradle"
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

@@ -1,0 +1,32 @@
+buildscript {
+    repositories {
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath "io.gitlab.arturbosch.detekt:detekt-gradle-plugin:$versions.detekt"
+    }
+
+}
+apply plugin: "io.gitlab.arturbosch.detekt"
+
+dependencies {
+    detektPlugins "io.gitlab.arturbosch.detekt:detekt-formatting:$versions.detekt"
+}
+
+// required to work correctly on Windows
+def escapedRootProjectDir = rootProject.projectDir.toString().replace("\\", "/")
+def escapedProjectDir = projectDir.toString().replace("\\", "/")
+
+detekt {
+    input = files(escapedProjectDir)
+    baseline = file("$escapedProjectDir/detekt-baseline.xml")
+    config = files("$escapedRootProjectDir/detekt-config.yml")
+    // Users of Gradle’s --parallel flag are encouraged to turn off the parallelism of detekt
+    // see https://arturbosch.github.io/detekt/changelog.html#120
+    parallel = false
+}
+
+tasks.withType(io.gitlab.arturbosch.detekt.Detekt) {
+    exclude "$escapedProjectDir/.*/resources/.*"
+    exclude "$escapedProjectDir/.*/build/.*"
+}

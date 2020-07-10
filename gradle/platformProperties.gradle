@@ -1,0 +1,105 @@
+import org.codehaus.groovy.runtime.IOGroovyMethods
+
+apply from: "${project.rootDir}/dependencies.gradle"
+apply from: "${project.rootDir}/versions.gradle"
+
+String.metaClass.getNotBlank = { !delegate.allWhitespace }
+
+static def isNotBlankString(value) {
+    value instanceof String && value.getNotBlank()
+}
+
+def setPropertyFromProjectOrSystemOrFiles(property, filePaths) {
+    if (hasProperty(property)) {
+        ext.property = properties.property
+
+        if (isNotBlankString(ext."$property")) {
+            return
+        }
+    }
+    // Filter check for non null gradle.ext.LDAP_USERNAME, loaded by the
+    // credential folder and the property needs to use this value instead
+    if (property.toString().equals("LDAP_USERNAME") &&
+            gradle.ext.LDAP_USERNAME != null) {
+        ext."$property" = gradle.ext.LDAP_USERNAME
+        if (isNotBlankString(ext."$property")) {
+            return
+        }
+    }
+    // Filter check for non null gradle.ext.LDAP_PASSWORD, loaded by the
+    // credential folder and the property needs to use this value instead
+    if (property.toString().equals("LDAP_PASSWORD") &&
+            gradle.ext.LDAP_PASSWORD != null) {
+        ext."$property" = gradle.ext.LDAP_PASSWORD
+        if (isNotBlankString(ext."$property")) {
+            return
+        }
+    }
+    if (isNotBlankString(System.env[property])) {
+        ext."$property" = System.env[property]
+
+        if (isNotBlankString(ext."$property")) {
+            return
+        }
+    }
+
+    setPropertyFromPropertyFiles(property, filePaths)
+}
+
+def setPropertyFromPropertyFiles(property, filePaths) {
+    filePaths.each {
+        def propertiesFile = rootProject.file(it)
+        def loadedProperties = new Properties()
+
+        if (propertiesFile.exists()) {
+            IOGroovyMethods.withCloseable(new FileInputStream(propertiesFile), loadedProperties.&load)
+
+            if (isNotBlankString(loadedProperties[property])) {
+                ext."$property" = loadedProperties[property]
+            }
+        }
+    }
+}
+
+def setPropertyDefaultValueIfRequired(property, defaults) {
+    String summary = defaults[0]
+    String defaultValue = defaults[1]
+
+    if (hasProperty(property) && isNotBlankString(ext."$property")) {
+        return
+    }
+
+    if (isNotBlankString(defaultValue)) {
+        ext."$property" = defaultValue
+        return
+    }
+
+    throw new GradleException("Missing project variable $property.\nDescription: $summary")
+}
+
+static def getVersionCode() {
+    def versionCodeProperty = System.env['versionCode']
+
+    return (versionCodeProperty != null && versionCodeProperty.isInteger()) ? (versionCodeProperty as int) : 1
+}
+
+ext.minSdk = min_sdk
+ext.versionCode = getVersionCode()
+
+[
+        "buildTools"        : ["Build tools version.", build_tools_version],
+        "targetSdk"         : ["Target SDK version.", target_sdk_version],
+        "compileSdk"        : ["Compile SDK version.", compile_sdk_version],
+        "useStaticVersion"  : ["Enable dependency configuration notation.", false],
+        "usePlatformVersion": ["Use unified platform version numbers.", true],
+        "platformVersion"   : ["Default Unified version number.", "1000.0.0"],
+].each { property, defaults ->
+    setPropertyFromProjectOrSystemOrFiles(
+            property,
+            [
+                    "$rootDir/gradle.properties",
+                    "$rootDir/local.properties"
+            ]
+    )
+    setPropertyDefaultValueIfRequired(property, defaults)
+}
